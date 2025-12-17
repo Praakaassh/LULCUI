@@ -1,21 +1,20 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import "./signup.css";
+import { Link } from "react-router-dom";
+import "./login.css";
 
-const Signup = () => {
-  const navigate = useNavigate();
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignup = (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     console.log(email, password);
   };
 
   return (
-    <div className="signup-container">
-      <form className="signup-box" onSubmit={handleSignup}>
-        <h2>Sign Up</h2>
+    <div className="login-container">
+      <form className="login-box" onSubmit={handleLogin}>
+        <h2>Login</h2>
 
         <input
           type="email"
@@ -31,17 +30,15 @@ const Signup = () => {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button type="submit">Create Account</button>
+        <button type="submit">Login</button>
 
-        <p className="login-text">
-          Already have an account?{" "}
-          <span onClick={() => navigate("/")}>
-            Login
-          </span>
+        <p className="signup-text">
+          Don’t have an account?{" "}
+          <Link to="/signup">Sign up</Link>
         </p>
       </form>
     </div>
   );
 };
 
-export default Signup;
+export default Login;
