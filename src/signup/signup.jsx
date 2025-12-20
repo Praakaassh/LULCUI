@@ -1,45 +1,44 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 import "./signup.css";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Signup = () => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSignup = (e) => {
     e.preventDefault();
-    console.log(email, password);
   };
 
   return (
-    <div className="signup-container">
-      <form className="signup-box" onSubmit={handleSignup}>
-        <h2>Sign Up</h2>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <div className="auth-title">Create account</div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={handleSignup}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <input
+            type="password"
+            placeholder="Create password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button type="submit">Create Account</button>
+          <button type="submit">Sign up</button>
+        </form>
 
-        <p className="login-text">
-          Already have an account?{" "}
-          <span onClick={() => navigate("/")}>
-            Login
-          </span>
-        </p>
-      </form>
+        <div className="auth-footer">
+          Already have an account? <Link to="/login">Login</Link>
+        </div>
+      </div>
     </div>
   );
 };

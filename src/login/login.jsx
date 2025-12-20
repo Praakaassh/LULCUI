@@ -1,6 +1,6 @@
+import "./login.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import "./login.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -8,35 +8,37 @@ const Login = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    console.log(email, password);
   };
 
   return (
-    <div className="login-container">
-      <form className="login-box" onSubmit={handleLogin}>
-        <h2>Login</h2>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <div className="auth-title">Login</div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button type="submit">Login</button>
+          <button type="submit">Log in</button>
+        </form>
 
-        <p className="signup-text">
-          Don’t have an account?{" "}
-          <Link to="/signup">Sign up</Link>
-        </p>
-      </form>
+        <div className="auth-footer">
+          Don’t have an account? <Link to="/signup">Sign up</Link>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,66 +1,94 @@
-* {
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
+/* FULL SCREEN CENTER WRAPPER */
+body {
+  background: rgb(24, 162, 190) !important;
 }
 
-.login-container {
+.auth-wrapper {
+  width: 100vw;
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+
+  display: grid;
+  place-items: center;
+
+  background: radial-gradient(
+    circle at top,
+    #111827,
+    #020617 60%
+  );
 }
 
-.login-box {
-  background: #ffffff;
-  padding: 30px;
-  width: 320px;
+/* CARD */
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+
+  background: #020617;
+  border: 1px solid #1f2937;
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+
+  padding: 32px 28px;
   text-align: center;
 }
 
-.login-box h2 {
-  margin-bottom: 20px;
-  color: #333;
+/* TITLE */
+.auth-title {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 24px;
 }
 
-.login-box input {
+/* INPUTS */
+.auth-card input {
   width: 100%;
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  outline: none;
-}
+  padding: 12px;
+  margin-bottom: 12px;
 
-.login-box input:focus {
-  border-color: #4facfe;
-}
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
 
-.login-box button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 15px;
-  border: none;
-  border-radius: 5px;
-  background-color: #4facfe;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.login-box button:hover {
-  background-color: #00c6ff;
-}
-
-.signup-text {
-  margin-top: 15px;
+  color: #e5e7eb;
   font-size: 14px;
 }
 
-.signup-text span {
-  color: #4facfe;
+.auth-card input::placeholder {
+  color: #9ca3af;
+}
+
+.auth-card input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* BUTTON */
+.auth-card button {
+  width: 100%;
+  padding: 10px;
+
+  margin-top: 8px;
+
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  font-weight: bold;
+}
+
+.auth-card button:hover {
+  background: #1d4ed8;
+}
+
+/* FOOTER LINK */
+.auth-footer {
+  margin-top: 18px;
+  font-size: 14px;
+}
+
+.auth-footer a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
 }
