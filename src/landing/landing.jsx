@@ -1,9 +1,9 @@
-import "./home.css";
+import "./landing.css";
 import { Link } from "react-router-dom";
 
-const Home = () => {
+const Landing = () => {
   return (
-    <div className="home">
+    <div className="Landing">
       {/* NAVBAR */}
       <nav className="navbar">
         <div className="nav-left">
@@ -74,4 +74,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Landing;
