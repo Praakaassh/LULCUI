@@ -1,0 +1,130 @@
+.home-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  /* Navbar styling */
+  .navbar {
+    height: 60px;
+    background-color: #1a1a2e;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 2px solid #0f3460;
+    z-index: 1000;
+  }
+  
+  .nav-brand {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #e94560;
+  }
+  
+  .logout-btn {
+    padding: 8px 15px;
+    background-color: transparent;
+    border: 1px solid #e94560;
+    color: #e94560;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: 0.3s;
+  }
+  
+  .logout-btn:hover {
+    background-color: #e94560;
+    color: white;
+  }
+  
+  /* Main content layout */
+  .main-content {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 60px); /* Full height minus navbar */
+  }
+  
+  /* Sidebar styling */
+  .sidebar {
+    width: 300px;
+    background-color: #16213e;
+    color: #f1f1f1;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    z-index: 900;
+  }
+  
+  .sidebar h2 {
+    color: #e94560;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+  }
+  
+  .instruction-text {
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+  
+  /* Analysis Buttons */
+  .analysis-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 30px;
+  }
+  
+  .tool-btn {
+    padding: 12px;
+    background-color: #0f3460;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .tool-btn:hover:not(:disabled) {
+    background-color: #e94560;
+  }
+  
+  .tool-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  /* Results Section */
+  .results-container {
+    background-color: #1a1a2e;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #0f3460;
+  }
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #0f3460;
+  }
+  
+  /* Map Container - CRITICAL for Leaflet to render */
+  .map-wrapper {
+    flex: 1; /* Takes remaining width */
+    position: relative;
+  }
+  
+  .leaflet-container {
+    width: 100%;
+    height: 100%;
+    background-color: #000; /* Background while tiles load */
+  }
