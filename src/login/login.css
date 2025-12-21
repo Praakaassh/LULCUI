@@ -1,6 +1,6 @@
 /* FULL SCREEN CENTER WRAPPER */
 body {
-  background: rgb(24, 162, 190) !important;
+  margin: 0;
 }
 
 .auth-wrapper {
@@ -10,12 +10,9 @@ body {
   display: grid;
   place-items: center;
 
-  background: radial-gradient(
-    circle at top,
-    #111827,
-    #020617 60%
-  );
+  background: transparent;
 }
+
 
 /* CARD */
 .auth-card {
@@ -35,6 +32,7 @@ body {
   font-size: 32px;
   font-weight: 600;
   margin-bottom: 24px;
+  color: white
 }
 
 /* INPUTS */
@@ -92,3 +90,32 @@ body {
   text-decoration: none;
   font-weight: 500;
 }
+
+/* BACKGROUND VIDEO */
+.bg-video {
+  position: fixed;     /* 🔥 IMPORTANT */
+  top: 0;
+  left: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* DARK OVERLAY FOR READABILITY */
+.auth-wrapper::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 2;
+}
+
+
