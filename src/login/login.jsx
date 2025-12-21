@@ -1,3 +1,4 @@
+import earthVideo from "../assets/earth-rotating.mp4";
 import "./login.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -12,6 +13,13 @@ const Login = () => {
 
   return (
     <div className="auth-wrapper">
+
+      {/* Background video */}
+      <video autoPlay muted loop className="bg-video">
+        <source src={earthVideo} type="video/mp4" />
+      </video>
+
+      {/* Login card */}
       <div className="auth-card">
         <div className="auth-title">Login</div>
 
@@ -39,6 +47,7 @@ const Login = () => {
           Don’t have an account? <Link to="/signup">Sign up</Link>
         </div>
       </div>
+
     </div>
   );
 };
