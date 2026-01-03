@@ -6,25 +6,31 @@ import "./home.css";
 import { MapContainer, TileLayer, FeatureGroup } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
+import * as turf from "@turf/turf";
 
-// Fix for default Leaflet marker icons
+// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
+
+const MIN_AREA_KM2 = 5;
 
 const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // STATE: Stores the boundary of the shape you drew
-  const [overlayBounds, setOverlayBounds] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState(null);
 
+  // AOI state
+  const [aoiGeoJSON, setAoiGeoJSON] = useState(null);
+  const [areaKm2, setAreaKm2] = useState(null);
+
+  // Auth check
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) navigate("/");
@@ -40,106 +46,120 @@ const Home = () => {
     navigate("/");
   };
 
-  const _onCreated = (e) => {
-    const { layer } = e;
-    
-    // 1. Get the rectangular boundary of the shape you drew
-    const bounds = layer.getBounds();
-    setOverlayBounds(bounds);
+  // AOI created
+  const onCreated = (e) => {
+    const layer = e.layer;
+    const geojson = layer.toGeoJSON();
 
-    // 2. Log coordinates for your backend
-    const coordinates = layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng]);
-    console.log("Coordinates:", coordinates);
+    const areaSqMeters = turf.area(geojson);
+    const areaSqKm = areaSqMeters / 1e6;
+
+    setAoiGeoJSON(geojson);
+    setAreaKm2(areaSqKm.toFixed(2));
   };
 
-  const _onDeleted = () => {
-    // Remove the Sentinel patch when shape is deleted
-    setOverlayBounds(null);
-    setAnalysisResults(null);
+  const onDeleted = () => {
+    setAoiGeoJSON(null);
+    setAreaKm2(null);
   };
-  
-  const runAnalysis = () => {
-      setIsAnalyzing(true);
-      setTimeout(() => {
-          setIsAnalyzing(false);
-          setAnalysisResults({ title: "Analysis Complete", stats: { "Status": "Success" } });
-      }, 2000);
+
+  // Common navigation helper
+  const goToAnalysis = (type) => {
+    if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
+
+    navigate(`/analysis/${type}`, {
+      state: {
+        aoi: aoiGeoJSON,
+        areaKm2: areaKm2,
+      },
+    });
   };
 
   if (loading) return <div>Loading...</div>;
 
   return (
     <div className="home-container">
+      {/* NAVBAR */}
       <nav className="navbar">
         <div className="nav-brand">LULC Satellite Analyzer</div>
         <div className="nav-user-menu">
           <span>{user?.email}</span>
-          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </nav>
 
       <div className="main-content">
+        {/* LEFT PANEL */}
         <div className="sidebar">
-          <h2>1. Select Area</h2>
+          <h2>1. Select Area of Interest</h2>
           <p className="instruction-text">
-            Draw a shape. The map inside will switch to Sentinel-2 view.
+            Draw a polygon or rectangle (minimum {MIN_AREA_KM2} km²).
           </p>
 
-          <h2>2. Run Analysis</h2>
-          <button 
-            className="tool-btn" 
-            onClick={runAnalysis}
-            disabled={isAnalyzing || !overlayBounds}
+          {areaKm2 && (
+            <p
+              style={{
+                marginTop: "10px",
+                color: areaKm2 >= MIN_AREA_KM2 ? "#4caf50" : "#f44336",
+              }}
+            >
+              Selected Area: {areaKm2} km²
+            </p>
+          )}
+
+          <h2 style={{ marginTop: "30px" }}>2. Select Analysis</h2>
+
+          <button
+            className="analysis-btn"
+            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
+            onClick={() => goToAnalysis("pollution")}
           >
-            Generate LULC Map
+            🌫 Environmental Pollution Monitoring
           </button>
-          
-           {analysisResults && (
-            <div className="results-container">
-              <h3>{analysisResults.title}</h3>
-              <p>Model Inputs Verified.</p>
-            </div>
-           )}
+
+          <button
+            className="analysis-btn"
+            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
+            onClick={() => goToAnalysis("disaster")}
+          >
+            🌪 Disaster Impact Assessment
+          </button>
+
+          <button
+            className="analysis-btn"
+            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
+            onClick={() => goToAnalysis("change")}
+          >
+            📈 Change Detection Over Time
+          </button>
         </div>
 
+        {/* MAP */}
         <div className="map-wrapper">
-          <MapContainer center={[20.5937, 78.9629]} zoom={5}>
-            
-            {/* 1. BASE LAYER (Always Google/Esri High Res) */}
+          <MapContainer
+            center={[20.5937, 78.9629]}
+            zoom={5}
+            style={{ height: "100%", width: "100%" }}
+          >
             <TileLayer
-                attribution='Tiles &copy; Esri'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            />
-
-            {/* 2. OVERLAY LAYER (Sentinel-2) - Only shows if bounds exist */}
-            {overlayBounds && (
-              <TileLayer
-                // KEY TRICK: The 'bounds' prop restricts this layer to the box
-                bounds={overlayBounds} 
-                attribution='Sentinel-2'
-                url="https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"
-                zIndex={100} // Ensures it sits ON TOP of the base layer
-              />
-            )}
-
-            {/* Labels (Roads) on top of everything */}
-            <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
-                zIndex={200}
+              attribution="&copy; OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
             <FeatureGroup>
               <EditControl
-                position='topleft'
-                onCreated={_onCreated}
-                onDeleted={_onDeleted}
+                position="topleft"
+                onCreated={onCreated}
+                onDeleted={onDeleted}
                 draw={{
                   rectangle: true,
-                  polygon: true, // Note: The overlay will be a rectangle around the polygon
+                  polygon: true,
                   circle: false,
                   marker: false,
                   polyline: false,
-                  circlemarker: false
+                  circlemarker: false,
                 }}
               />
             </FeatureGroup>

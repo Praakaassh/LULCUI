@@ -1,14 +1,15 @@
-import earthVideo from "../assets/earth-rotating.mp4";
 import "./signup.css";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// IMPORTANT: Adjust this path to wherever you saved your supabase client file
 import { supabase } from "../Supabase/supabaseClient";
+
+// 1. Import the video file
+import earthVideo from "../assets/earth-rotating-web.mp4.mp4"; // Ensure this matches your file name exactly
 
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false); // To prevent double clicking
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
@@ -16,20 +17,19 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // This is the actual call to Supabase to create the user
       const { data, error } = await supabase.auth.signUp({
         email: email,
         password: password,
       });
 
-      if (error) {
-        throw error;
+      if (error) throw error;
+      
+      // Fix: Check if session exists for immediate login if email confirm is off
+      if (data.session) {
+         navigate("/home");
+      } else {
+         alert("Success! Check your email for the confirmation link.");
       }
-
-      // Success! 
-      alert("Success! Check your email for the confirmation link.");
-      // Optional: Redirect to login page after signup
-      // navigate("/login"); 
 
     } catch (error) {
       alert(error.message);
@@ -39,17 +39,22 @@ const Signup = () => {
   };
 
   return (
-    <div className="auth-wrapper">
+    <div className="signup-container">
+      
+      {/* 2. Add the Video Background */}
+      <div className="video-background">
+        <video autoPlay loop muted playsInline>
+          <source src={earthVideo} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        {/* Optional: Overlay to darken video slightly for better text readability */}
+        <div className="video-overlay"></div>
+      </div>
 
-      {/* Background video */}
-      <video autoPlay muted loop className="bg-video">
-        <source src={earthVideo} type="video/mp4" />
-      </video>
-
-      {/* Signup card */}
-      <div className="auth-card">
-        <div className="auth-title">Create account</div>
-
+      {/* 3. The Signup Form (remains mostly the same, just sits on top now) */}
+      <div className="signup-card">
+        <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>Create Account</h2>
+        
         <form onSubmit={handleSignup}>
           <input
             type="email"
@@ -72,11 +77,10 @@ const Signup = () => {
           </button>
         </form>
 
-        <div className="auth-footer">
-          Already have an account? <Link to="/login">Login</Link>
+        <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
+          Already have an account? <Link to="/login" style={{ color: '#2a5298', fontWeight: 'bold' }}>Login</Link>
         </div>
       </div>
-
     </div>
   );
 };
