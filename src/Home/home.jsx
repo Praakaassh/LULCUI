@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../Supabase/supabaseClient";
 import "./home.css";
 
-import { MapContainer, TileLayer, FeatureGroup } from "react-leaflet";
+import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from "react-leaflet"; // Added GeoJSON
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import * as turf from "@turf/turf";
@@ -26,9 +26,15 @@ const Home = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // AOI state
-  const [aoiGeoJSON, setAoiGeoJSON] = useState(null);
-  const [areaKm2, setAreaKm2] = useState(null);
+  // --- FIX 1: Initialize State from localStorage ---
+  const [aoiGeoJSON, setAoiGeoJSON] = useState(() => {
+    const saved = localStorage.getItem("aoiGeoJSON");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [areaKm2, setAreaKm2] = useState(() => {
+    return localStorage.getItem("areaKm2") || null;
+  });
 
   // Auth check
   useEffect(() => {
@@ -41,8 +47,20 @@ const Home = () => {
     });
   }, [navigate]);
 
+  // --- FIX 2: Persist State to localStorage ---
+  useEffect(() => {
+    if (aoiGeoJSON) {
+      localStorage.setItem("aoiGeoJSON", JSON.stringify(aoiGeoJSON));
+      localStorage.setItem("areaKm2", areaKm2);
+    } else {
+      localStorage.removeItem("aoiGeoJSON");
+      localStorage.removeItem("areaKm2");
+    }
+  }, [aoiGeoJSON, areaKm2]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    localStorage.clear(); // Clear data on logout
     navigate("/");
   };
 
@@ -63,11 +81,27 @@ const Home = () => {
     setAreaKm2(null);
   };
 
-  // Common navigation helper
+  // Manual Clear Function (for the sidebar button)
+  const handleClearSelection = () => {
+    setAoiGeoJSON(null);
+    setAreaKm2(null);
+    // Note: This won't visually remove layers managed by EditControl if they are still on screen,
+    // but it clears the "Saved" state and the Analysis buttons.
+    // Ideally, force a re-render of the map or refresh if needed, but this handles the data.
+    window.location.reload(); // Simple way to clear map visuals completely
+  };
+
+  // Navigation Helper
   const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
 
-    navigate(`/analysis/${type}`, {
+    let path = `/analysis/${type}`;
+
+    if (type === "LULCVIEW") {
+      path = "/lulc-view";
+    }
+
+    navigate(path, {
       state: {
         aoi: aoiGeoJSON,
         areaKm2: areaKm2,
@@ -99,41 +133,61 @@ const Home = () => {
           </p>
 
           {areaKm2 && (
-            <p
-              style={{
-                marginTop: "10px",
-                color: areaKm2 >= MIN_AREA_KM2 ? "#4caf50" : "#f44336",
-              }}
-            >
-              Selected Area: {areaKm2} km²
-            </p>
+            <div style={{ marginTop: "10px" }}>
+              <p
+                style={{
+                  color: areaKm2 >= MIN_AREA_KM2 ? "#4caf50" : "#f44336",
+                  marginBottom: "10px"
+                }}
+              >
+                Selected Area: {areaKm2} km²
+              </p>
+              
+              {/* Added Clear Button for better UX */}
+              <button 
+                onClick={handleClearSelection}
+                style={{
+                  background: "#ff4444",
+                  color: "white",
+                  border: "none",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "0.8rem"
+                }}
+              >
+                Clear Selection 🗑️
+              </button>
+            </div>
           )}
 
           <h2 style={{ marginTop: "30px" }}>2. Select Analysis</h2>
-
-          <button
+           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("pollution")}
+            onClick={() => goToAnalysis("LULCVIEW")}
           >
-            🌫 Environmental Pollution Monitoring
+            View LULC MAP
           </button>
 
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("disaster")}
+            onClick={() => goToAnalysis("development")}
           >
-            🌪 Disaster Impact Assessment
+            Development Rate Prediction 🏗
           </button>
 
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("change")}
+            onClick={() => goToAnalysis("Change Detection")}
           >
-            📈 Change Detection Over Time
+            Change Detection
           </button>
+
+          
+
         </div>
 
         {/* MAP */}
@@ -143,10 +197,39 @@ const Home = () => {
             zoom={5}
             style={{ height: "100%", width: "100%" }}
           >
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <LayersControl position="topright">
+              
+              <LayersControl.BaseLayer checked name="Satellite (Esri)">
+                <TileLayer
+                  attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-GP, and the GIS User Community'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                />
+              </LayersControl.BaseLayer>
+
+              <LayersControl.BaseLayer name="Street Map (OSM)">
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+              </LayersControl.BaseLayer>
+
+              <LayersControl.Overlay checked name="Labels (Roads & Names)">
+                 <TileLayer
+                   url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                 />
+              </LayersControl.Overlay>
+
+            </LayersControl>
+
+            {/* --- FIX 3: Restore the Polygon Visual --- */}
+            {/* If we have saved data, render it. We use a key to force re-render if data changes */}
+            {aoiGeoJSON && (
+              <GeoJSON 
+                key={JSON.stringify(aoiGeoJSON)} 
+                data={aoiGeoJSON} 
+                style={{ color: "#3388ff", weight: 2, fillOpacity: 0.2 }}
+              />
+            )}
 
             <FeatureGroup>
               <EditControl
