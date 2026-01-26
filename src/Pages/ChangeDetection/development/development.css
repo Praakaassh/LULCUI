@@ -1,0 +1,147 @@
+/* src/Pages/ChangeDetection/development/development.css */
+.dev-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #0b0f14;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  
+  .dev-header {
+    height: 60px;
+    background-color: #111827;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+  }
+  
+  .dev-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    color: #fff;
+  }
+  
+  .dev-content {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 60px);
+  }
+  
+  /* SIDEBAR CONTROLS */
+  .dev-sidebar {
+    width: 350px;
+    background-color: #161b22;
+    border-right: 1px solid #333;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+  
+  .control-card {
+    background: #0d1117;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+  }
+  
+  .year-inputs {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+  }
+  
+  .year-inputs label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  
+  .year-inputs input {
+    background: #0b0f14;
+    border: 1px solid #30363d;
+    color: white;
+    padding: 5px;
+    border-radius: 4px;
+    margin-top: 5px;
+  }
+  
+  .calc-btn {
+    width: 100%;
+    padding: 10px;
+    background: #238636;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+  }
+  
+  .calc-btn:hover {
+    background: #2ea043;
+  }
+  
+  .calc-btn:disabled {
+    background: #484f58;
+    cursor: not-allowed;
+  }
+  
+  /* STATS RESULTS */
+  .stats-results {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    animation: fadeIn 0.5s ease;
+  }
+  
+  .stat-card {
+    background: #1f2937;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #374151;
+  }
+  
+  .big-num {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin: 10px 0;
+  }
+  
+  .red { color: #f87171; }
+  .green { color: #4ade80; }
+  
+  .prediction-box {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid #1d4ed8;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #93c5fd;
+  }
+  
+  /* MAP AREA */
+  .dev-map {
+    flex: 1;
+    background: #000;
+    position: relative;
+  }
+  
+  .error-msg {
+    color: #ff7b72;
+    background: rgba(255, 0, 0, 0.1);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }

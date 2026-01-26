@@ -4,13 +4,13 @@ import {
   MapContainer,
   TileLayer,
   GeoJSON,
-  ImageOverlay,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import React from "react";
 
 // --- CSS STYLES ---
+// UPDATED: Added all 9 Dynamic World colors to match your Python backend
 const STYLES = `
   .cd-container { height: 100vh; display: flex; flex-direction: column; background: #0b0f14; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
   .cd-header { height: 50px; background: #111827; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #333; flex-shrink: 0; }
@@ -34,21 +34,32 @@ const STYLES = `
   .map-select option { background: #111; color: white; }
   .loading-indicator { font-size: 0.7rem; color: #fbbf24; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-  .legend-panel { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(0, 0, 0, 0.8); padding: 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #444; pointer-events: none; }
-  .legend-panel h4 { margin: 0 0 5px 0; color: #aaa; }
-  .l-item { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
-  .box { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
-  .water { background: #419bdf; } .trees { background: #397d49; } .grass { background: #88b053; } .crops { background: #e49635; } .urban { background: #c4281b; } 
+  
+  /* LEGEND PANEL STYLES */
+  .legend-panel { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(0, 0, 0, 0.85); padding: 12px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #444; pointer-events: none; min-width: 140px; }
+  .legend-panel h4 { margin: 0 0 8px 0; color: #ccc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+  .l-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .box { width: 12px; height: 12px; display: inline-block; border-radius: 2px; border: 1px solid rgba(255,255,255,0.2); }
+  
+  /* DYNAMIC WORLD PALETTE COLORS */
+  .water { background: #419bdf; } 
+  .trees { background: #397d49; } 
+  .grass { background: #88b053; } 
+  .flooded_veg { background: #7a87c6; }
+  .crops { background: #e49635; } 
+  .shrub { background: #dfc35a; }
+  .urban { background: #c4281b; } 
+  .bare { background: #a59b8f; }
+  .snow { background: #b39fe1; }
 `;
 
 // --- SINGLE MAP COMPONENT ---
-// Now accepts 'fetchUrl' function instead of fetching internally
 const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, bounds, maskGeo }) => {
   const [tileUrl, setTileUrl] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let active = true; // Prevents setting state if component unmounts
+    let active = true;
 
     if (layerId === "satellite") {
       setTileUrl("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
@@ -58,7 +69,6 @@ const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, boun
 
     const loadData = async () => {
       setLoading(true);
-      // CALL THE CACHED FETCH FUNCTION FROM PARENT
       const url = await fetchUrl(layerId, maskGeo.geometry);
       if (active) {
         setTileUrl(url);
@@ -86,7 +96,7 @@ const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, boun
             <option key={year} value={year}>{year} Map</option>
           ))}
         </select>
-        {loading && <span className="loading-indicator">Cache Miss (Fetching)...</span>}
+        {loading && <span className="loading-indicator">Fetching...</span>}
       </div>
 
       <MapContainer
@@ -125,8 +135,6 @@ const ChangeDetection = () => {
     { id: 2, layer: "2025" },
   ]);
 
-  // --- CACHE STATE ---
-  // Stores URLs like: { "2015": "https://earthengine...", "2016": "..." }
   const [urlCache, setUrlCache] = useState({});
 
   if (!location.state?.aoi) {
@@ -147,16 +155,9 @@ const ChangeDetection = () => {
     },
   }), [aoi]);
 
-  // --- SMART FETCH FUNCTION (WITH CACHING) ---
   const getLayerUrl = useCallback(async (year, geojson) => {
-    // 1. Check Cache First
-    if (urlCache[year]) {
-      console.log(`Cache Hit for ${year}`);
-      return urlCache[year];
-    }
+    if (urlCache[year]) return urlCache[year];
 
-    // 2. If not in cache, fetch from Python Backend
-    console.log(`Cache Miss for ${year}, fetching...`);
     try {
       const response = await fetch('http://localhost:5000/api/get-gee-layer', {
         method: 'POST',
@@ -167,18 +168,14 @@ const ChangeDetection = () => {
       if (!response.ok) return null;
       
       const data = await response.json();
-      
-      // 3. Save to Cache
       setUrlCache(prev => ({ ...prev, [year]: data.url }));
-      
       return data.url;
     } catch (error) {
       console.error("Fetch error:", error);
       return null;
     }
-  }, [urlCache]); // Depends on current cache state
+  }, [urlCache]);
 
-  // --- HANDLERS ---
   const addScreen = () => {
     if (screens.length < 6) {
       setScreens([...screens, { id: Math.random(), layer: "satellite" }]);
@@ -200,11 +197,10 @@ const ChangeDetection = () => {
       <style>{STYLES}</style>
 
       <div className="cd-container">
-        {/* HEADER */}
         <div className="cd-header">
           <div className="cd-title">
             <button onClick={() => navigate(-1)} className="back-btn">⬅ Back</button>
-            <span>Sentinel-2 LULC Analysis (Cached)</span>
+            <span>Sentinel-2 LULC Analysis</span>
           </div>
 
           <div className="screen-controls">
@@ -228,7 +224,6 @@ const ChangeDetection = () => {
           </div>
         </div>
 
-        {/* DYNAMIC GRID */}
         <div className={`cd-grid grid-${screens.length}`}>
           {screens.map((screen) => (
             <MapScreen 
@@ -236,20 +231,25 @@ const ChangeDetection = () => {
               screenId={screen.id}
               layerId={screen.layer}
               onLayerChange={handleLayerChange}
-              fetchUrl={getLayerUrl} // Pass the smart fetcher
+              fetchUrl={getLayerUrl}
               bounds={bounds}
               maskGeo={maskGeometry}
             />
           ))}
         </div>
 
+        {/* UPDATED LEGEND to match your Python Backend */}
         <div className="legend-panel">
-          <h4>Class Legend</h4>
-          <div className="l-item"><span className="box urban"></span> Built-up / Urban</div>
-          <div className="l-item"><span className="box trees"></span> Trees / Forest</div>
-          <div className="l-item"><span className="box crops"></span> Crops / Agriculture</div>
+          <h4>Dynamic World Legend</h4>
           <div className="l-item"><span className="box water"></span> Water</div>
-          <div className="l-item"><span className="box grass"></span> Grassland</div>
+          <div className="l-item"><span className="box trees"></span> Trees</div>
+          <div className="l-item"><span className="box grass"></span> Grass</div>
+          <div className="l-item"><span className="box flooded_veg"></span> Flooded Vegetation</div>
+          <div className="l-item"><span className="box crops"></span> Crops</div>
+          <div className="l-item"><span className="box shrub"></span> Shrub & Scrub</div>
+          <div className="l-item"><span className="box urban"></span> Built-up</div>
+          <div className="l-item"><span className="box bare"></span> Bare Ground</div>
+          <div className="l-item"><span className="box snow"></span> Snow & Ice</div>
         </div>
       </div>
     </>

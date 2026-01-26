@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../Supabase/supabaseClient";
 import "./home.css";
 
-import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from "react-leaflet"; // Added GeoJSON
+import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L from "leaflet";
 import * as turf from "@turf/turf";
@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-const MIN_AREA_KM2 = 5;
+const MIN_AREA_KM2 = 0.01;
 
 const Home = () => {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
 
   // --- FIX 1: Initialize State from localStorage ---
+  // This checks if we saved a polygon before page load/refresh
   const [aoiGeoJSON, setAoiGeoJSON] = useState(() => {
     const saved = localStorage.getItem("aoiGeoJSON");
     return saved ? JSON.parse(saved) : null;
@@ -48,6 +49,7 @@ const Home = () => {
   }, [navigate]);
 
   // --- FIX 2: Persist State to localStorage ---
+  // Whenever the polygon changes, save it to browser storage
   useEffect(() => {
     if (aoiGeoJSON) {
       localStorage.setItem("aoiGeoJSON", JSON.stringify(aoiGeoJSON));
@@ -85,20 +87,27 @@ const Home = () => {
   const handleClearSelection = () => {
     setAoiGeoJSON(null);
     setAreaKm2(null);
-    // Note: This won't visually remove layers managed by EditControl if they are still on screen,
-    // but it clears the "Saved" state and the Analysis buttons.
-    // Ideally, force a re-render of the map or refresh if needed, but this handles the data.
-    window.location.reload(); // Simple way to clear map visuals completely
+    window.location.reload(); // Force reload to clear map visuals completely
   };
 
-  // Navigation Helper
+  // --- UPDATED NAVIGATION HELPER ---
   const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
 
     let path = `/analysis/${type}`;
 
+    // 1. Route for LULC View
     if (type === "LULCVIEW") {
       path = "/lulc-view";
+    }
+    // 2. Route for Development/Change Detection
+    else if (type === "development") {
+      path = "/development";
+    }
+    // 3. Fallback/Standard Change Detection (if you have another page)
+    else if (type === "Change Detection") {
+       // Assuming you might route this elsewhere or keep standard path
+       path = "/change-detection"; 
     }
 
     navigate(path, {
@@ -129,8 +138,8 @@ const Home = () => {
         <div className="sidebar">
           <h2>1. Select Area of Interest</h2>
           <p className="instruction-text">
-            Draw a polygon or rectangle (minimum {MIN_AREA_KM2} km²).
-          </p>
+  Draw a polygon or rectangle (minimum {MIN_AREA_KM2} km²).
+    </p>
 
           {areaKm2 && (
             <div style={{ marginTop: "10px" }}>
@@ -143,7 +152,7 @@ const Home = () => {
                 Selected Area: {areaKm2} km²
               </p>
               
-              {/* Added Clear Button for better UX */}
+              {/* Added Clear Button */}
               <button 
                 onClick={handleClearSelection}
                 style={{
@@ -162,7 +171,9 @@ const Home = () => {
           )}
 
           <h2 style={{ marginTop: "30px" }}>2. Select Analysis</h2>
-           <button
+           
+          {/* LULC VIEW BUTTON */}
+          <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
             onClick={() => goToAnalysis("LULCVIEW")}
@@ -170,6 +181,7 @@ const Home = () => {
             View LULC MAP
           </button>
 
+          {/* DEVELOPMENT RATE BUTTON */}
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
@@ -178,6 +190,7 @@ const Home = () => {
             Development Rate Prediction 🏗
           </button>
 
+          {/* CHANGE DETECTION BUTTON (Optional/Extra) */}
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
@@ -185,8 +198,6 @@ const Home = () => {
           >
             Change Detection
           </button>
-
-          
 
         </div>
 
@@ -222,7 +233,7 @@ const Home = () => {
             </LayersControl>
 
             {/* --- FIX 3: Restore the Polygon Visual --- */}
-            {/* If we have saved data, render it. We use a key to force re-render if data changes */}
+            {/* Renders the saved polygon when you navigate back */}
             {aoiGeoJSON && (
               <GeoJSON 
                 key={JSON.stringify(aoiGeoJSON)} 
