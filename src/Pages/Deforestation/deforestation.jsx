@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "./development.css";
+import "./development.css"; // reuse same CSS
 
-const Development = () => {
+const Deforestation = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // AOI
+  // AOI from Home
   const { aoi } = location.state || {};
 
   // Stats
@@ -33,7 +33,7 @@ const Development = () => {
   }, [aoi, navigate]);
 
   // -------------------------
-  // Calculate development rate
+  // Calculate deforestation rate
   // -------------------------
   const calculateRate = async () => {
     setLoading(true);
@@ -42,7 +42,7 @@ const Development = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/calculate-change",
+        "http://localhost:5000/api/calculate-deforestation",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -60,14 +60,14 @@ const Development = () => {
       setStats(data);
     } catch (err) {
       console.error(err);
-      setError("Error calculating development rate.");
+      setError("Error calculating deforestation rate.");
     } finally {
       setLoading(false);
     }
   };
 
   // -------------------------
-  // Load future prediction heatmap
+  // Load deforestation risk heatmap (future prediction)
   // -------------------------
   const loadHeatmap = async () => {
     setLoading(true);
@@ -75,7 +75,7 @@ const Development = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/get-future-heatmap",
+        "http://localhost:5000/api/get-deforestation-heatmap",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -94,7 +94,7 @@ const Development = () => {
       setShowHeatmap(true);
     } catch (err) {
       console.error(err);
-      setError("Error loading future prediction heatmap.");
+      setError("Error loading deforestation prediction heatmap.");
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ const Development = () => {
         <button onClick={() => navigate("/home")} className="back-btn">
           ⬅ Back to Home
         </button>
-        <h2>🏗 Development Rate & Prediction</h2>
+        <h2>🌲 Deforestation Rate & Prediction</h2>
       </div>
 
       <div className="dev-content">
@@ -147,7 +147,7 @@ const Development = () => {
               onClick={calculateRate}
               disabled={loading}
             >
-              {loading ? "Calculating..." : "Calculate Development Rate 🚀"}
+              {loading ? "Calculating..." : "Calculate Deforestation Rate 🌲"}
             </button>
 
             <button
@@ -155,7 +155,7 @@ const Development = () => {
               onClick={loadHeatmap}
               disabled={loading}
             >
-              {loading ? "Loading..." : "🔮 Show Future Heatmap"}
+              {loading ? "Loading..." : "🔮 Show Deforestation Risk Heatmap"}
             </button>
 
             {showHeatmap && (
@@ -173,15 +173,13 @@ const Development = () => {
           {stats && (
             <div className="stats-results">
               <div className="stat-card">
-                <h4>Total Urban Growth</h4>
-                <p className="big-num red">+{stats.growth_km2} km²</p>
-                <small>
-                  Cumulative growth ({stats.period})
-                </small>
+                <h4>Total Forest Loss</h4>
+                <p className="big-num red">-{stats.loss_km2} km²</p>
+                <small>Cumulative loss ({stats.period})</small>
               </div>
 
               <div className="stat-card">
-                <h4>Avg. Development Rate</h4>
+                <h4>Avg. Deforestation Rate</h4>
                 <p className="big-num green">
                   {stats.rate_per_year} km² / year
                 </p>
@@ -196,7 +194,7 @@ const Development = () => {
                     {" "}
                     {(stats.rate_per_year * 5).toFixed(2)} km²{" "}
                   </b>
-                  may be urbanized in the next 5 years.
+                  of forest may be lost in the next 5 years.
                 </p>
               </div>
             </div>
@@ -214,16 +212,16 @@ const Development = () => {
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             />
 
-            {/* 🔮 FUTURE HEATMAP */}
+            {/* 🔮 DEFORESTATION HEATMAP */}
             {showHeatmap && heatmapUrl && (
-              <TileLayer url={heatmapUrl} opacity={0.7} />
+              <TileLayer url={heatmapUrl} opacity={0.6} />
             )}
 
             {/* AOI outline */}
             <GeoJSON
               data={aoi}
               style={{
-                color: "#ff4444",
+                color: "#00c853",
                 fillOpacity: 0.1,
                 weight: 2,
               }}
@@ -235,4 +233,4 @@ const Development = () => {
   );
 };
 
-export default Development;
+export default Deforestation;

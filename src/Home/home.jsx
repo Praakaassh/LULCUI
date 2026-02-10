@@ -93,23 +93,22 @@ const Home = () => {
   // --- UPDATED NAVIGATION HELPER ---
   const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
-
+  
     let path = `/analysis/${type}`;
-
-    // 1. Route for LULC View
+  
     if (type === "LULCVIEW") {
       path = "/lulc-view";
     }
-    // 2. Route for Development/Change Detection
     else if (type === "development") {
       path = "/development";
     }
-    // 3. Fallback/Standard Change Detection (if you have another page)
-    else if (type === "Change Detection") {
-       // Assuming you might route this elsewhere or keep standard path
-       path = "/change-detection"; 
+    else if (type === "deforestation") {
+      path = "/deforestation";
     }
-
+    else if (type === "Change Detection") {
+      path = "/change-detection";
+    }
+  
     navigate(path, {
       state: {
         aoi: aoiGeoJSON,
@@ -117,6 +116,7 @@ const Home = () => {
       },
     });
   };
+  
 
   if (loading) return <div>Loading...</div>;
 
@@ -189,6 +189,15 @@ const Home = () => {
           >
             Development Rate Prediction 🏗
           </button>
+          {/* DEFORESTATION RATE BUTTON */}
+<button
+  className="analysis-btn"
+  disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
+  onClick={() => goToAnalysis("deforestation")}
+>
+  Deforestation Rate Prediction 🌲
+</button>
+
 
           {/* CHANGE DETECTION BUTTON (Optional/Extra) */}
           <button
