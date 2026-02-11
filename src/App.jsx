@@ -20,6 +20,7 @@ function App() {
       {/* ✅ ADD THE ROUTE */}
       <Route path="/development" element={<Development />} />
     </Routes>
+
   );
 }
 
