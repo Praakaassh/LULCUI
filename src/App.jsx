@@ -1,22 +1,19 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Login from "./login/login";
-import Signup from "./signup/signup";
-import Landing from "./landing/landing";
-import Home from "./Home/home";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Landing from './landing/landing';
+import Login from './login/login';
+import Signup from './signup/signup';
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* DEFAULT PAGE */}
+        {/* This makes Landing your home page */}
         <Route path="/" element={<Landing />} />
-
-        {/* AUTH PAGES */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/home" element={<Home />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
