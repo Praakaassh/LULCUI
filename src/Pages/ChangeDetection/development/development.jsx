@@ -3,118 +3,124 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, GeoJSON, ImageOverlay } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "./development.css";
+import "./development.css"; 
+
+// Fix for default Leaflet marker icons
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const Development = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // AOI (Area of Interest) from previous page
   const { aoi } = location.state || {};
 
-  // Stats State
+  // --- STATS STATE (Linked to ab.py on Port 5000) ---
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState(null);
 
-  // Years State
-  const [startYear, setStartYear] = useState(2015);
-  const [endYear, setEndYear] = useState(2024);
-
-  // Heatmap State
+  // --- MODEL STATE (Linked to model.py on Port 5001) ---
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelError, setModelError] = useState(null);
   const [heatmapUrl, setHeatmapUrl] = useState(null);
   const [heatmapBounds, setHeatmapBounds] = useState(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
-  // Redirect if no AOI
+  // Years State (For Stats)
+  const [startYear, setStartYear] = useState(2015);
+  const [endYear, setEndYear] = useState(2024);
+
   useEffect(() => {
     if (!aoi) {
-      alert("No Area of Interest found. Please select an area on the Home page.");
+      alert("No Area of Interest found. Redirecting...");
       navigate("/home");
     }
   }, [aoi, navigate]);
 
-  // -------------------------
-  // 1. Calculate Statistics (Server 1: Port 5000)
-  // -------------------------
+  // =========================================================
+  //  FUNCTION 1: Get Stats from ab.py (Port 5000)
+  // =========================================================
   const calculateRate = async () => {
-    setLoading(true);
-    setError(null);
+    setStatsLoading(true);
+    setStatsError(null);
     setStats(null);
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/calculate-change",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            year_start: startYear,
-            year_end: endYear,
-            geojson: aoi.geometry,
-          }),
-        }
-      );
+      console.log("📊 Fetching stats from Port 5000...");
+      const response = await fetch("http://localhost:5000/api/calculate-change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year_start: startYear,
+          year_end: endYear,
+          geojson: aoi.geometry,
+        }),
+      });
 
-      if (!response.ok) throw new Error("Calculation failed");
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Stats calculation failed");
+      }
 
       const data = await response.json();
       setStats(data);
     } catch (err) {
       console.error(err);
-      setError("Error calculating development rate (Check Server 1 on Port 5000).");
+      setStatsError("Error connecting to ab.py (Port 5000). Is it running?");
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
   };
 
-  // -------------------------
-  // 2. Load Future Prediction Heatmap (Server 2: Port 5001)
-  // -------------------------
-  const loadHeatmap = async () => {
-    setLoading(true);
-    setError(null);
-    setHeatmapUrl(null); // Clear previous map
+  // =========================================================
+  //  FUNCTION 2: Get Prediction from model.py (Port 5001)
+  // =========================================================
+  const runAIModel = async () => {
+    setModelLoading(true);
+    setModelError(null);
+    setHeatmapUrl(null);
     setHeatmapBounds(null);
 
     try {
-      console.log("🚀 Requesting prediction map from model.py...");
-      
-      // UPDATED PORT: 5001 (To avoid conflict with stats server)
-      const response = await fetch(
-        "http://localhost:5001/api/predict",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            geojson: aoi.geometry, // Send the polygon coordinates
-          }),
-        }
-      );
+      console.log("🧠 Sending request to AI Model on Port 5001...");
+      const response = await fetch("http://localhost:5001/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          geojson: aoi.geometry, // The model only needs the location
+        }),
+      });
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error || "Heatmap generation failed");
+        throw new Error(errData.error || "Model inference failed");
       }
 
       const data = await response.json();
-      
       console.log("✅ Prediction received!");
-      setHeatmapUrl(data.url);       // Base64 image string
-      setHeatmapBounds(data.bounds); // [[lat1, lon1], [lat2, lon2]]
+      
+      setHeatmapUrl(data.url);       // Base64 Image string
+      setHeatmapBounds(data.bounds); // Lat/Lon bounds
       setShowHeatmap(true);
 
     } catch (err) {
       console.error(err);
-      setError("Error loading future prediction heatmap (Check model.py on Port 5001): " + err.message);
+      setModelError("Error connecting to model.py (Port 5001). Is it running?");
     } finally {
-      setLoading(false);
+      setModelLoading(false);
     }
   };
 
   if (!aoi) return null;
 
-  // Calculate Map Center based on AOI
   const aoiLayer = L.geoJSON(aoi);
   const mapBounds = aoiLayer.getBounds();
 
@@ -122,76 +128,62 @@ const Development = () => {
     <div className="dev-container">
       {/* HEADER */}
       <div className="dev-header">
-        <button onClick={() => navigate("/home")} className="back-btn">
-          ⬅ Back to Home
-        </button>
+        <button onClick={() => navigate("/home")} className="back-btn">⬅ Back to Home</button>
         <h2>🏗 Urban Development Prediction</h2>
       </div>
 
       <div className="dev-content">
-        {/* SIDEBAR */}
         <div className="dev-sidebar">
           
-          {/* Controls */}
+          {/* CONTROL CARD */}
           <div className="control-card">
             <h3>Analysis Controls</h3>
-
             <div className="year-inputs">
               <label>
-                Start Year:
-                <input
-                  type="number"
-                  value={startYear}
-                  onChange={(e) => setStartYear(Number(e.target.value))}
-                />
+                Start: <input type="number" value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} />
               </label>
               <label>
-                End Year:
-                <input
-                  type="number"
-                  value={endYear}
-                  onChange={(e) => setEndYear(Number(e.target.value))}
-                />
+                End: <input type="number" value={endYear} onChange={(e) => setEndYear(Number(e.target.value))} />
               </label>
             </div>
 
-            <button
-              className="calc-btn"
-              onClick={calculateRate}
-              disabled={loading}
+            <button 
+              className="calc-btn" 
+              onClick={calculateRate} 
+              disabled={statsLoading}
             >
-              {loading ? "Calculating..." : "Calculate Stats 📊"}
+              {statsLoading ? "Calculating..." : "Calculate Stats 📊"}
             </button>
+
+            {/* Stats Error Msg */}
+            {statsError && <div className="error-msg">{statsError}</div>}
 
             <div className="divider"></div>
 
             <h3>AI Prediction</h3>
             <p className="description">
-              Generate a forecast for 2027 using the Deep Learning model.
+              Run the PyTorch Deep Learning model to predict future urbanization.
             </p>
 
-            <button
-              className="calc-btn heatmap-btn"
-              onClick={loadHeatmap}
-              disabled={loading}
+            <button 
+              className="calc-btn heatmap-btn" 
+              onClick={runAIModel} 
+              disabled={modelLoading}
             >
-              {loading ? "Running Model... ⏳" : "🔮 Generate 2027 Map"}
+              {modelLoading ? "Running Model... ⏳" : "🔮 Generate 2027 Map"}
             </button>
 
+             {/* Model Error Msg */}
+            {modelError && <div className="error-msg">{modelError}</div>}
+
             {showHeatmap && (
-              <button
-                className="calc-btn secondary-btn"
-                onClick={() => setShowHeatmap(false)}
-              >
-                ❌ Hide Heatmap
+              <button className="calc-btn secondary-btn" onClick={() => setShowHeatmap(false)}>
+                ❌ Hide Prediction
               </button>
             )}
           </div>
 
-          {/* Error Message */}
-          {error && <div className="error-msg">{error}</div>}
-
-          {/* Stats Results */}
+          {/* RESULTS SECTION */}
           {stats && (
             <div className="stats-results">
               <div className="stat-card">
@@ -199,7 +191,6 @@ const Development = () => {
                 <p className="big-num red">+{stats.growth_km2} km²</p>
                 <small>Period: {stats.period}</small>
               </div>
-
               <div className="stat-card">
                 <h4>Avg. Rate</h4>
                 <p className="big-num green">{stats.rate_per_year} km²/yr</p>
@@ -210,28 +201,18 @@ const Development = () => {
 
         {/* MAP */}
         <div className="dev-map">
-          <MapContainer
-            bounds={mapBounds}
-            style={{ height: "100%", width: "100%" }}
-          >
-            {/* Satellite Base Map */}
+          <MapContainer bounds={mapBounds} style={{ height: "100%", width: "100%" }}>
             <TileLayer
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               attribution="Esri World Imagery"
             />
 
-            {/* AOI Outline (Dashed Line) */}
-            <GeoJSON
-              data={aoi}
-              style={{
-                color: "#ff4444",
-                weight: 2,
-                dashArray: "5, 5",
-                fillOpacity: 0.0,
-              }}
+            <GeoJSON 
+              data={aoi} 
+              style={{ color: "#ff4444", weight: 2, dashArray: "5, 5", fillOpacity: 0 }} 
             />
 
-            {/* AI Prediction Overlay */}
+            {/* AI PREDICTION OVERLAY */}
             {showHeatmap && heatmapUrl && heatmapBounds && (
               <ImageOverlay
                 url={heatmapUrl}
