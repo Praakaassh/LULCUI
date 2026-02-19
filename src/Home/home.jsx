@@ -30,7 +30,6 @@ const Home = () => {
   const featureGroupRef = useRef(null);
 
   // --- FIX 1: Initialize State from localStorage ---
-  // This checks if we saved a polygon before page load/refresh
   const [aoiGeoJSON, setAoiGeoJSON] = useState(() => {
     const saved = localStorage.getItem("aoiGeoJSON");
     return saved ? JSON.parse(saved) : null;
@@ -52,7 +51,6 @@ const Home = () => {
   }, [navigate]);
 
   // --- FIX 2: Persist State to localStorage ---
-  // Whenever the polygon changes, save it to browser storage
   useEffect(() => {
     if (aoiGeoJSON) {
       localStorage.setItem("aoiGeoJSON", JSON.stringify(aoiGeoJSON));
@@ -87,7 +85,6 @@ const Home = () => {
   };
 
   // --- UPDATED CLEAR SELECTION ---
-  // Clears state and Leaflet map layers without a full page reload
   const handleClearSelection = () => {
     setAoiGeoJSON(null);
     setAreaKm2(null);
@@ -99,28 +96,22 @@ const Home = () => {
   };
 
   // --- NAVIGATION HELPER ---
-  const goToAnalysis = (type) => {
+ const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
 
-    let path = `/analysis/${type}`;
-
-    if (type === "LULCVIEW") {
-      path = "/lulc-view";
-    }
-    else if (type === "development") {
-      path = "/development";
-    }
-    else if (type === "deforestation") {
-      path = "/deforestation";
-    }
-    else if (type === "Change Detection") {
-      path = "/change-detection";
+    let path = "";
+    
+    if (type === "LULCVIEW") path = "/lulc-view";
+    else if (type === "prediction") path = "/prediction";
+    else if (type === "development" || type === "deforestation") {
+      path = "/change-analysis"; // ✅ Point to the new combined route
     }
 
     navigate(path, {
       state: {
         aoi: aoiGeoJSON,
         areaKm2: areaKm2,
+        initialType: type, // ✅ Passes the mode so the toggle defaults correctly!
       },
     });
   };
@@ -205,6 +196,16 @@ const Home = () => {
           >
             Deforestation Rate Prediction 🌲
           </button>
+
+          {/* AI PREDICTION BUTTON (NEW) */}
+          <button
+            className="analysis-btn"
+            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
+            onClick={() => goToAnalysis("prediction")}
+            style={{ border: "2px solid #9c27b0" }} // Optional highlight styling
+          >
+            AI Urbanization Prediction 🔮
+          </button>
         </div>
 
         {/* MAP */}
@@ -238,7 +239,6 @@ const Home = () => {
 
             </LayersControl>
 
-            {/* Restores the saved polygon when you navigate back */}
             {aoiGeoJSON && (
               <GeoJSON 
                 key={JSON.stringify(aoiGeoJSON)} 
@@ -247,7 +247,6 @@ const Home = () => {
               />
             )}
 
-            {/* --- ATTACHED REF HERE --- */}
             <FeatureGroup ref={featureGroupRef}>
               <EditControl
                 position="topleft"
