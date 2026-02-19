@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../Supabase/supabaseClient";
 import "./home.css";
@@ -25,6 +25,9 @@ const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // --- ADDED REF HERE ---
+  const featureGroupRef = useRef(null);
 
   // --- FIX 1: Initialize State from localStorage ---
   // This checks if we saved a polygon before page load/refresh
@@ -83,19 +86,24 @@ const Home = () => {
     setAreaKm2(null);
   };
 
-  // Manual Clear Function (for the sidebar button)
+  // --- UPDATED CLEAR SELECTION ---
+  // Clears state and Leaflet map layers without a full page reload
   const handleClearSelection = () => {
     setAoiGeoJSON(null);
     setAreaKm2(null);
-    window.location.reload(); // Force reload to clear map visuals completely
+    
+    // Programmatically clear the drawing layer from the map
+    if (featureGroupRef.current) {
+      featureGroupRef.current.clearLayers();
+    }
   };
 
-  // --- UPDATED NAVIGATION HELPER ---
+  // --- NAVIGATION HELPER ---
   const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
-  
+
     let path = `/analysis/${type}`;
-  
+
     if (type === "LULCVIEW") {
       path = "/lulc-view";
     }
@@ -108,7 +116,7 @@ const Home = () => {
     else if (type === "Change Detection") {
       path = "/change-detection";
     }
-  
+
     navigate(path, {
       state: {
         aoi: aoiGeoJSON,
@@ -116,7 +124,6 @@ const Home = () => {
       },
     });
   };
-  
 
   if (loading) return <div>Loading...</div>;
 
@@ -138,8 +145,8 @@ const Home = () => {
         <div className="sidebar">
           <h2>1. Select Area of Interest</h2>
           <p className="instruction-text">
-  Draw a polygon or rectangle (minimum {MIN_AREA_KM2} km²).
-    </p>
+            Draw a polygon or rectangle (minimum {MIN_AREA_KM2} km²).
+          </p>
 
           {areaKm2 && (
             <div style={{ marginTop: "10px" }}>
@@ -152,7 +159,7 @@ const Home = () => {
                 Selected Area: {areaKm2} km²
               </p>
               
-              {/* Added Clear Button */}
+              {/* Clear Button */}
               <button 
                 onClick={handleClearSelection}
                 style={{
@@ -171,7 +178,7 @@ const Home = () => {
           )}
 
           <h2 style={{ marginTop: "30px" }}>2. Select Analysis</h2>
-           
+            
           {/* LULC VIEW BUTTON */}
           <button
             className="analysis-btn"
@@ -189,25 +196,15 @@ const Home = () => {
           >
             Development Rate Prediction 🏗
           </button>
+
           {/* DEFORESTATION RATE BUTTON */}
-<button
-  className="analysis-btn"
-  disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-  onClick={() => goToAnalysis("deforestation")}
->
-  Deforestation Rate Prediction 🌲
-</button>
-
-
-          {/* CHANGE DETECTION BUTTON (Optional/Extra) */}
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("Change Detection")}
+            onClick={() => goToAnalysis("deforestation")}
           >
-            Change Detection
+            Deforestation Rate Prediction 🌲
           </button>
-
         </div>
 
         {/* MAP */}
@@ -241,8 +238,7 @@ const Home = () => {
 
             </LayersControl>
 
-            {/* --- FIX 3: Restore the Polygon Visual --- */}
-            {/* Renders the saved polygon when you navigate back */}
+            {/* Restores the saved polygon when you navigate back */}
             {aoiGeoJSON && (
               <GeoJSON 
                 key={JSON.stringify(aoiGeoJSON)} 
@@ -251,7 +247,8 @@ const Home = () => {
               />
             )}
 
-            <FeatureGroup>
+            {/* --- ATTACHED REF HERE --- */}
+            <FeatureGroup ref={featureGroupRef}>
               <EditControl
                 position="topleft"
                 onCreated={onCreated}

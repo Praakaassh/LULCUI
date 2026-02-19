@@ -1,0 +1,236 @@
+/* =========================================
+   Container & Layout
+   ========================================= */
+   .dev-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121212 !important; /* Force Dark Background */
+    color: #e0e0e0;
+    overflow: hidden;
+  }
+  
+  .dev-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  /* =========================================
+     Header
+     ========================================= */
+  .dev-header {
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    height: 64px;
+    background-color: #1e1e1e !important; /* Dark Header */
+    border-bottom: 2px solid #2e7d32; /* Green accent line */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+  }
+  
+  .dev-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  
+  .back-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 4px;
+    margin-right: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    transition: all 0.2s ease;
+  }
+  
+  .back-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  /* =========================================
+     Sidebar
+     ========================================= */
+  .dev-sidebar {
+    width: 360px;
+    background-color: #1e1e1e !important; /* Dark Sidebar */
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Scrollbar styling for dark mode */
+  .dev-sidebar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .dev-sidebar::-webkit-scrollbar-track {
+    background: #121212;
+  }
+  .dev-sidebar::-webkit-scrollbar-thumb {
+    background-color: #333;
+    border-radius: 4px;
+  }
+  
+  /* =========================================
+     Controls & Inputs
+     ========================================= */
+  .control-card {
+    background-color: #2c2c2c; /* Slightly lighter card */
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 20px;
+  }
+  
+  .control-card h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.1rem;
+    color: #81c784; /* Light Green Text */
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+  }
+  
+  .year-inputs input {
+    margin-top: 8px;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 4px;
+    font-size: 1rem;
+    
+    /* Add these two lines to fix the overflow: */
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .year-inputs label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    color: #bbb;
+    flex: 1;
+  }
+  
+  .year-inputs input {
+    margin-top: 8px;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+  
+  .year-inputs input:focus {
+    outline: none;
+    border-color: #2e7d32;
+    background-color: #000;
+  }
+  
+  /* =========================================
+     Buttons
+     ========================================= */
+  .calc-btn {
+    width: 100%;
+    padding: 14px;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: filter 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+  
+  .calc-btn:hover:not(:disabled) {
+    filter: brightness(1.2);
+  }
+  
+  .calc-btn:disabled {
+    background-color: #444 !important;
+    color: #888;
+    cursor: not-allowed;
+  }
+  
+  .secondary-btn {
+    background-color: #c62828 !important; /* Red */
+    margin-top: 15px;
+  }
+  
+  /* =========================================
+     Stats Results
+     ========================================= */
+  .stats-results {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .stat-card {
+    background-color: #2c2c2c;
+    border-left: 4px solid #555; /* Default border */
+    border-radius: 4px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  
+  /* Add specialized border colors based on content if you want, 
+     but for now we keep it simple or use inline styles from React */
+  
+  .stat-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.8rem;
+    color: #aaa;
+    text-transform: uppercase;
+  }
+  
+  .big-num {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  
+  .big-num.green { color: #66bb6a !important; } /* Light Green for dark mode */
+  .big-num.red { color: #ef5350 !important; }   /* Light Red for dark mode */
+  
+  .stat-card small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #888;
+  }
+  
+  /* =========================================
+     Map Area
+     ========================================= */
+  .dev-map {
+    flex: 1;
+    position: relative;
+    background-color: #000;
+  }
+  
+  .error-msg {
+    background-color: rgba(211, 47, 47, 0.2);
+    border: 1px solid #d32f2f;
+    color: #ffcdd2;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }

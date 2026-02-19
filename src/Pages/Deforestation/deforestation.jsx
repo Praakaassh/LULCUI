@@ -156,19 +156,6 @@ const Deforestation = () => {
 
             <div className="divider"></div>
 
-            <h3>Future Risk</h3>
-            <p className="description">
-              Predict forest cover changes for 2027.
-            </p>
-
-            <button
-              className="calc-btn heatmap-btn"
-              onClick={loadHeatmap}
-              disabled={loading}
-            >
-              {loading ? "Processing..." : "🔮 Generate Prediction Map"}
-            </button>
-
             {showHeatmap && (
               <button
                 className="calc-btn secondary-btn"
@@ -181,7 +168,7 @@ const Deforestation = () => {
 
           {error && <div className="error-msg">{error}</div>}
 
-          {/* ✅ UPDATED STATS DISPLAY FOR DEFORESTATION */}
+          {/* ✅ UPDATED STATS DISPLAY FOR DEFORESTATION (Removed hardcoded styles) */}
           {stats && (
             <div className="stats-results">
               <div className="stat-card">
@@ -198,12 +185,12 @@ const Deforestation = () => {
 
               <div className="stat-card">
                 <h4>Annual Rate</h4>
-                <p className="big-num" style={{ color: "#555" }}>
+                <p className="big-num">
                   {stats.rate_per_year} km² / year
                 </p>
               </div>
               
-              <div className="stat-card" style={{backgroundColor: "#e8f5e9"}}>
+              <div className="stat-card highlight-card">
                  <h4>Current Forest Area</h4>
                  <p className="big-num green">{stats.end_area_km2} km²</p>
               </div>
