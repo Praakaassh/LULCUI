@@ -5,6 +5,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from geopy.geocoders import Nominatim
+from dotenv import load_dotenv  # Added
+
+# Load environment variables from .env file
+load_dotenv()
 
 # --- SUPPRESS WARNINGS ---
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -14,13 +18,16 @@ CORS(app)
 
 # --- INITIALIZE EARTH ENGINE ---
 try:
-    ee.Initialize(project='lulc-470905')
-    print("✅ Earth Engine Initialized.")
+    # Uses the project ID from .env
+    ee_project = os.getenv('EE_PROJECT_ID')
+    ee.Initialize(project=ee_project)
+    print(f"✅ Earth Engine Initialized with project: {ee_project}")
 except Exception as e:
     print(f"❌ EE Initialization Error: {e}")
 
 # --- API KEY CONFIGURATION ---
-api_key = "AIzaSyDXkNoFBcTJkD6TdpuAUBOFsudHu30CUn8"
+# Fetches key from .env instead of hard-coding
+api_key = os.getenv('GEMINI_API_KEY')
 
 def get_ai_client():
     return genai.Client(api_key=api_key)
@@ -89,7 +96,6 @@ def generate_inference():
     data = request.json
     coords = data.get('coords')
     
-    # --- PRECISION GEOCODER FIX ---
     location_full = "the analyzed area"
     if coords:
         try:
@@ -97,7 +103,6 @@ def generate_inference():
             location = geolocator.reverse(f"{coords['lat']}, {coords['lon']}", language='en')
             if location:
                 addr = location.raw.get('address', {})
-                # Dynamically pull the correct city/town and state
                 city = addr.get('city') or addr.get('town') or addr.get('village') or addr.get('suburb') or "Selected Area"
                 state = addr.get('state') or "India"
                 location_full = f"{city}, {state}"

@@ -1,3 +1,6 @@
+# --- SENSITIVE DATA ---
+# This ignores your API keys and project IDs
+.env
 # Logs
 logs
 *.log
