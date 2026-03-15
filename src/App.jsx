@@ -5,9 +5,12 @@ import Landing from "./landing/landing";
 import Home from "./Home/home";
 import LULCVIEW from "./Pages/LULCVIEW/LULCView"; 
 
-// ✅ New Combined Analysis & Prediction Pages
+// ✅ Existing New Pages
 import Prediction from "./Pages/AIPrediction/prediction.jsx";
 import ChangeAnalysis from "./Pages/ChangeDetection/ChangeAnalysis.jsx"; 
+
+// 📁 New Saved Reports Archive Page
+import SavedReports from "./Pages/savedReports.jsx";
 
 function App() {
   return (
@@ -18,9 +21,11 @@ function App() {
       <Route path="/home" element={<Home />} />
       <Route path="/lulc-view" element={<LULCVIEW />} />
       
-      {/* Our New Routes */}
       <Route path="/prediction" element={<Prediction />} />
       <Route path="/change-analysis" element={<ChangeAnalysis />} />
+
+      {/* ✅ Add this new route */}
+      <Route path="/saved-reports" element={<SavedReports />} />
     </Routes>
   );
 }

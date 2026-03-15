@@ -26,10 +26,8 @@ const Home = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // --- ADDED REF HERE ---
   const featureGroupRef = useRef(null);
 
-  // --- FIX 1: Initialize State from localStorage ---
   const [aoiGeoJSON, setAoiGeoJSON] = useState(() => {
     const saved = localStorage.getItem("aoiGeoJSON");
     return saved ? JSON.parse(saved) : null;
@@ -50,7 +48,7 @@ const Home = () => {
     });
   }, [navigate]);
 
-  // --- FIX 2: Persist State to localStorage ---
+  // Persist State to localStorage
   useEffect(() => {
     if (aoiGeoJSON) {
       localStorage.setItem("aoiGeoJSON", JSON.stringify(aoiGeoJSON));
@@ -63,7 +61,7 @@ const Home = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.clear(); // Clear data on logout
+    localStorage.clear(); 
     navigate("/");
   };
 
@@ -84,19 +82,16 @@ const Home = () => {
     setAreaKm2(null);
   };
 
-  // --- UPDATED CLEAR SELECTION ---
   const handleClearSelection = () => {
     setAoiGeoJSON(null);
     setAreaKm2(null);
     
-    // Programmatically clear the drawing layer from the map
     if (featureGroupRef.current) {
       featureGroupRef.current.clearLayers();
     }
   };
 
-  // --- NAVIGATION HELPER ---
- const goToAnalysis = (type) => {
+  const goToAnalysis = (type) => {
     if (!aoiGeoJSON || areaKm2 < MIN_AREA_KM2) return;
 
     let path = "";
@@ -104,14 +99,14 @@ const Home = () => {
     if (type === "LULCVIEW") path = "/lulc-view";
     else if (type === "prediction") path = "/prediction";
     else if (type === "development" || type === "deforestation") {
-      path = "/change-analysis"; // ✅ Point to the new combined route
+      path = "/change-analysis"; 
     }
 
     navigate(path, {
       state: {
         aoi: aoiGeoJSON,
         areaKm2: areaKm2,
-        initialType: type, // ✅ Passes the mode so the toggle defaults correctly!
+        initialType: type, 
       },
     });
   };
@@ -150,7 +145,6 @@ const Home = () => {
                 Selected Area: {areaKm2} km²
               </p>
               
-              {/* Clear Button */}
               <button 
                 onClick={handleClearSelection}
                 style={{
@@ -170,7 +164,6 @@ const Home = () => {
 
           <h2 style={{ marginTop: "30px" }}>2. Select Analysis</h2>
             
-          {/* LULC VIEW BUTTON */}
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
@@ -179,32 +172,22 @@ const Home = () => {
             View LULC MAP
           </button>
 
-          {/* DEVELOPMENT RATE BUTTON */}
           <button
             className="analysis-btn"
             disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
             onClick={() => goToAnalysis("development")}
           >
-            Development Rate Prediction 🏗
+            Analytical Dashboard
           </button>
 
-          {/* DEFORESTATION RATE BUTTON */}
+          {/* --- NEW SECTION: SAVED REPORTS --- */}
+          <h2 style={{ marginTop: "30px" }}>3. Archives</h2>
           <button
             className="analysis-btn"
-            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("deforestation")}
+            style={{ backgroundColor: "#8e44ad", borderColor: "#8e44ad" }}
+            onClick={() => navigate("/saved-reports")}
           >
-            Deforestation Rate Prediction 🌲
-          </button>
-
-          {/* AI PREDICTION BUTTON (NEW) */}
-          <button
-            className="analysis-btn"
-            disabled={!aoiGeoJSON || areaKm2 < MIN_AREA_KM2}
-            onClick={() => goToAnalysis("prediction")}
-            style={{ border: "2px solid #9c27b0" }} // Optional highlight styling
-          >
-            AI Urbanization Prediction 🔮
+            View Saved PDF Reports 
           </button>
         </div>
 

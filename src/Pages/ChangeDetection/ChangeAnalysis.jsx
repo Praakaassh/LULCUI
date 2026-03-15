@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, GeoJSON, ImageOverlay } from "react-leaflet";
 import L from "leaflet";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { supabase } from "../../Supabase/supabaseClient"; 
 import "leaflet/dist/leaflet.css";
 import "./ChangeAnalysis.css";
 
@@ -20,41 +21,36 @@ const ChangeAnalysis = () => {
   const { aoi } = useLocation().state || {};
   const navigate = useNavigate();
 
-  // --- STATES ---
   const [startYear, setStartYear] = useState(2015);
   const [endYear, setEndYear] = useState(2024);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Data States
   const [stats, setStats] = useState(null);
   const [transitions, setTransitions] = useState(null);
   
-  // AI States
   const [aiInference, setAiInference] = useState(null);
   const [usedModel, setUsedModel] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // Prediction States
   const [modelLoading, setModelLoading] = useState(false);
   const [heatmapUrl, setHeatmapUrl] = useState(null);
   const [heatmapBounds, setHeatmapBounds] = useState(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
-  // PDF Report States
+  // PDF & Supabase States
   const [reportLoading, setReportLoading] = useState(false);
-  const [lulcThumbUrl, setLulcThumbUrl] = useState(null);
-  const [satelliteMapUrl, setSatelliteMapUrl] = useState(null);
-  // NEW: Store the base64 versions for bulletproof PDF generation
   const [base64Images, setBase64Images] = useState({ lulc: null, sat: null, heat: null });
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // UI States
   const [sidebarWidth, setSidebarWidth] = useState(420);
   const isResizing = useRef(false);
 
   useEffect(() => { if (!aoi) navigate("/home"); }, [aoi, navigate]);
 
-  // --- RESIZE LOGIC ---
+  // --- SIDEBAR RESIZE LOGIC ---
   const startResizing = useCallback(() => {
     isResizing.current = true;
     document.addEventListener("mousemove", handleMouseMove);
@@ -75,8 +71,9 @@ const ChangeAnalysis = () => {
   const API_BASE = "http://localhost:5000/api";
   const MODEL_BASE = "http://localhost:5001/api";
 
+  // --- CORE ANALYSIS LOGIC ---
   const runFullAnalysis = async () => {
-    setLoading(true); setError(null); setStats(null); setTransitions(null); setAiInference(null);
+    setLoading(true); setError(null); setStats(null); setTransitions(null); setAiInference(null); setPdfBlob(null); setSaveSuccess(false);
     const center = L.geoJSON(aoi).getBounds().getCenter();
 
     try {
@@ -133,7 +130,6 @@ const ChangeAnalysis = () => {
     }
   };
 
-  // --- HELPER: Convert URL to Base64 to bypass CORS in html2canvas ---
   const fetchImageAsBase64 = async (url) => {
     if (!url) return null;
     try {
@@ -151,19 +147,20 @@ const ChangeAnalysis = () => {
     }
   };
 
-  // --- AUTOMATED PDF GENERATOR (BULLETPROOF BASE64 IMAGES) ---
+  // --- PDF GENERATION ---
   const generatePDFReport = async () => {
     if (!stats || !aiInference) {
       alert("Please Run Historical Analysis first!");
       return;
     }
     setReportLoading(true);
+    setPdfBlob(null);
+    setSaveSuccess(false);
 
     try {
       let currentHeatmap = heatmapUrl;
       if (!currentHeatmap) currentHeatmap = await runAIModel();
 
-      // Fetch Image URLs
       const lulcRes = await fetch(`${API_BASE}/get-lulc-thumb`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ year: endYear, geojson: aoi.geometry })
@@ -176,28 +173,23 @@ const ChangeAnalysis = () => {
       });
       const satData = await satRes.json();
 
-      // Convert ALL images to Base64 *before* rendering the PDF template
       const b64Lulc = await fetchImageAsBase64(lulcData.url);
       const b64Sat = await fetchImageAsBase64(satData.url);
       const b64Heat = await fetchImageAsBase64(currentHeatmap);
 
-      // Save to state so the hidden DOM updates with the Base64 strings
       setBase64Images({ lulc: b64Lulc, sat: b64Sat, heat: b64Heat });
 
-      // Give the React DOM a moment to update the <img> tags
       setTimeout(async () => {
         const reportElement = document.getElementById("hidden-pdf-report");
-        reportElement.style.display = "block"; 
-
+        
         const canvas = await html2canvas(reportElement, { 
             scale: 2, 
-            useCORS: true, // Still good practice
+            useCORS: true,
             logging: false,
             windowWidth: 800 
         });
         
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        
         const pdfWidth = 210; 
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
@@ -208,16 +200,60 @@ const ChangeAnalysis = () => {
         });
 
         pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`LULC_Report_${stats.location || 'Region'}.pdf`);
         
-        reportElement.style.display = "none"; 
+        const fileName = `LULC_Report_${stats.location || 'Region'}.pdf`.replace(/\s+/g, '_');
+        pdf.save(fileName);
+        
+        setPdfBlob(pdf.output('blob'));
         setReportLoading(false);
-      }, 1000); // Shorter timeout needed since images are already local Base64
+      }, 1000);
 
     } catch (err) {
       console.error(err);
       alert("Failed to generate PDF. Check console.");
       setReportLoading(false);
+    }
+  };
+
+  // --- SUPABASE UPLOAD ---
+  const saveToSupabase = async () => {
+    if (!pdfBlob) return;
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be logged in to save reports.");
+
+      const fileName = `LULC_Report_${stats.location || 'Region'}_${Date.now()}.pdf`.replace(/\s+/g, '_');
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('reports') 
+        .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('reports')
+        .getPublicUrl(filePath);
+
+      const { error: dbError } = await supabase.from('saved_reports').insert([
+        {
+          user_id: user.id,
+          file_name: fileName,
+          file_url: publicUrl,
+          location: stats.location || 'Region',
+        }
+      ]);
+
+      if (dbError) throw dbError;
+
+      setSaveSuccess(true);
+      alert("Report successfully saved to your cloud archive!");
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Error saving: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -227,7 +263,6 @@ const ChangeAnalysis = () => {
   return (
     <div className="dev-container" style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       
-      {/* LOADING OVERLAYS */}
       {loading && <div className="loading-overlay"><div className="spinner"></div><p>Performing Analysis...</p></div>}
       {reportLoading && <div className="loading-overlay" style={{backgroundColor: 'rgba(142, 68, 173, 0.95)', zIndex: 9999}}><div className="spinner"></div><p>Compiling High-Res PDF Report...</p></div>}
 
@@ -238,7 +273,6 @@ const ChangeAnalysis = () => {
 
       <div className="dev-content" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
-        {/* RESIZABLE SIDEBAR */}
         <div className="dev-sidebar" style={{ width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px`, overflowY: 'auto' }}>
           
           <div className="control-card">
@@ -259,17 +293,30 @@ const ChangeAnalysis = () => {
                 </button>
             )}
             
-            {/* GENERATE PDF BUTTON */}
             {aiInference && (
               <button className="calc-btn" onClick={generatePDFReport} disabled={reportLoading} style={{backgroundColor: "#27ae60", marginTop: "15px", border: '2px solid #2ecc71'}}>
-                {reportLoading ? "Generating..." : "3. Generate Final PDF Report 📄"}
+                {reportLoading ? "Generating..." : "3. Download PDF Report 📄"}
+              </button>
+            )}
+
+            {pdfBlob && (
+              <button 
+                className="calc-btn" 
+                onClick={saveToSupabase} 
+                disabled={isSaving || saveSuccess} 
+                style={{
+                  backgroundColor: saveSuccess ? "#2c3e50" : "#e67e22", 
+                  marginTop: "10px", 
+                  border: `2px solid ${saveSuccess ? "#2c3e50" : "#d35400"}`
+                }}
+              >
+                {isSaving ? "Uploading to Cloud..." : saveSuccess ? "✅ Saved to Archives!" : "💾 Save Copy to Cloud Archive"}
               </button>
             )}
           </div>
 
-          {error && <div className="error-msg" style={{color: '#ff4d4d', padding: '10px', border: '1px solid #ff4d4d', borderRadius: '4px', margin: '10px 0'}}>{error}</div>}
+          {error && <div className="error-msg">{error}</div>}
 
-          {/* KEY METRICS DASHBOARD */}
           {stats && (
             <div className="metrics-grid">
               <div className="metric-box">
@@ -287,14 +334,16 @@ const ChangeAnalysis = () => {
             </div>
           )}
 
-          {/* CSS-BASED ANALYTICAL CHART */}
           {transitions && stats && (
             <div className="control-card">
               <h3>Shift Distribution Intensity</h3>
               <div className="custom-chart-container">
                 {transitions.slice(0, 4).map((t, i) => {
-                  const percentage = ((t.area_km2 / stats.totalChangedArea) * 100).toFixed(1);
+                  const percentage = stats.totalChangedArea > 0 
+                    ? ((t.area_km2 / stats.totalChangedArea) * 100).toFixed(1) 
+                    : 0;
                   const isUrban = t.to.includes("Built");
+                  
                   return (
                     <div key={i} className="chart-bar-row">
                       <div className="chart-label" title={`${t.from} → ${t.to}`}>{t.from} → {t.to}</div>
@@ -315,7 +364,6 @@ const ChangeAnalysis = () => {
             </div>
           )}
 
-          {/* AI CONSULTANT REPORT */}
           {(aiLoading || aiInference) && (
             <div className="control-card ai-insight">
               <h3>✨ AI Data Analyst Insights</h3>
@@ -330,7 +378,6 @@ const ChangeAnalysis = () => {
             </div>
           )}
 
-          {/* TRANSITION MATRIX */}
           {transitions && (
             <div className="control-card">
               <h3>Detailed Transition Matrix</h3>
@@ -356,10 +403,8 @@ const ChangeAnalysis = () => {
           )}
         </div>
 
-        {/* RESIZE HANDLE */}
         <div className="resizer-handle" onMouseDown={startResizing} title="Drag to resize sidebar" />
 
-        {/* MAP */}
         <div className="dev-map" style={{ flex: 1, position: 'relative' }}>
           <MapContainer bounds={mapBounds} style={{ height: "100%", width: "100%", zIndex: 1 }} zoomControl={false}>
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
@@ -373,10 +418,10 @@ const ChangeAnalysis = () => {
 
       {/* --- HIDDEN PDF REPORT TEMPLATE --- */}
       <div id="hidden-pdf-report" style={{ 
-          display: 'none', position: 'absolute', top: '-9999px', left: '-9999px', 
-          width: '800px', backgroundColor: '#ffffff', color: '#000000', padding: '40px', fontFamily: 'Helvetica, Arial, sans-serif' 
+          position: 'absolute', top: '-9999px', left: '-9999px', 
+          width: '800px', backgroundColor: '#ffffff', color: '#000000', padding: '40px', fontFamily: 'Helvetica, Arial, sans-serif',
+          zIndex: -1000 
       }}>
-        {/* HEADER */}
         <div style={{ borderBottom: '3px solid #8e44ad', paddingBottom: '15px', marginBottom: '20px' }}>
           <h1 style={{ margin: 0, color: '#2c3e50', fontSize: '28px' }}>Strategic Urban & LULC Report</h1>
           <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#7f8c8d' }}>
@@ -384,7 +429,6 @@ const ChangeAnalysis = () => {
           </p>
         </div>
 
-        {/* KEY METRICS BOXES */}
         <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
           <div style={{ flex: 1, backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #dee2e6', textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#6c757d', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Change</div>
@@ -400,15 +444,13 @@ const ChangeAnalysis = () => {
           </div>
         </div>
 
-        {/* AI INSIGHTS */}
         <h3 style={{ color: '#2c3e50', borderBottom: '1px solid #bdc3c7', paddingBottom: '5px', marginTop: '10px' }}>1. AI Urban Insights</h3>
         <p style={{ lineHeight: '1.6', fontSize: '15px', color: '#34495e', textAlign: 'justify' }}>{aiInference}</p>
 
-        {/* SHIFT DISTRIBUTION CHART */}
         <h3 style={{ color: '#2c3e50', borderBottom: '1px solid #bdc3c7', paddingBottom: '5px', marginTop: '30px' }}>2. Shift Distribution Intensity</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
           {transitions && stats && transitions.slice(0, 4).map((t, i) => {
-            const percentage = ((t.area_km2 / stats.totalChangedArea) * 100).toFixed(1);
+            const percentage = stats.totalChangedArea > 0 ? ((t.area_km2 / stats.totalChangedArea) * 100).toFixed(1) : 0;
             const isUrban = t.to.includes("Built");
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: '14px', color: '#2c3e50' }}>
@@ -422,13 +464,12 @@ const ChangeAnalysis = () => {
           })}
         </div>
 
-        {/* TRANSITION MATRIX */}
         <h3 style={{ color: '#2c3e50', borderBottom: '1px solid #bdc3c7', paddingBottom: '5px', marginTop: '30px' }}>3. Detailed Transition Matrix</h3>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '14px', color: '#2c3e50' }}>
           <thead>
             <tr style={{ backgroundColor: '#ecf0f1', borderBottom: '2px solid #bdc3c7' }}>
-              <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>From (Previous State)</th>
-              <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>To (Current State)</th>
+              <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>From</th>
+              <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold' }}>To</th>
               <th style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>Area (km²)</th>
             </tr>
           </thead>
@@ -443,48 +484,31 @@ const ChangeAnalysis = () => {
           </tbody>
         </table>
 
-        {/* MAP VISUALIZATIONS (Using Base64 Strings) */}
         <h3 style={{ color: '#2c3e50', borderBottom: '1px solid #bdc3c7', paddingBottom: '5px', marginTop: '30px' }}>4. Geospatial Validations</h3>
         <div style={{ display: 'flex', gap: '20px', marginTop: '15px', alignItems: 'flex-start' }}>
-          
           <div style={{ flex: 1, textAlign: 'center' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#34495e' }}>Current LULC Classification</h4>
             <div style={{ width: '100%', aspectRatio: '1/1', position: 'relative', border: '1px solid #bdc3c7', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ecf0f1' }}>
-              {base64Images.lulc ? (
-                <img src={base64Images.lulc} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="LULC Base Map" />
-              ) : (
-                <div style={{padding: '50px 0', color: '#7f8c8d'}}>Loading Map...</div>
-              )}
+              {base64Images.lulc ? <img src={base64Images.lulc} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="LULC" /> : <div style={{padding: '50px 0'}}>Loading...</div>}
             </div>
           </div>
-          
           <div style={{ flex: 1, textAlign: 'center' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#34495e' }}>Predicted Growth Trajectory</h4>
             <div style={{ width: '100%', aspectRatio: '1/1', position: 'relative', border: '1px solid #bdc3c7', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#ecf0f1' }}>
               {base64Images.sat ? (
                   <>
-                    {/* The base satellite layer */}
-                    <img src={base64Images.sat} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="Satellite Base" />
-                    
-                    {/* The red prediction mask layer */}
-                    {base64Images.heat && (
-                      <img src={base64Images.heat} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} alt="Prediction Heatmap" />
-                    )}
+                    <img src={base64Images.sat} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="Satellite" />
+                    {base64Images.heat && <img src={base64Images.heat} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} alt="Heatmap" />}
                   </>
-              ) : (
-                  <div style={{color: '#7f8c8d', padding: '50px 0'}}>Loading Overlay...</div>
-              )}
+              ) : <div style={{padding: '50px 0'}}>Loading...</div>}
             </div>
           </div>
-
         </div>
         
-        {/* FOOTER */}
         <div style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#95a5a6', borderTop: '1px solid #ecf0f1', paddingTop: '10px' }}>
-          *This report was compiled using Earth Engine historical metrics and AI spatial analysis powered by {usedModel}.
+          *Compiled via Earth Engine historical metrics and AI spatial analysis powered by {usedModel}.
         </div>
       </div>
-
     </div>
   );
 };
