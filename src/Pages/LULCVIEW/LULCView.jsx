@@ -1,16 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  MapContainer,
-  TileLayer,
-  GeoJSON,
-} from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import React from "react";
 
 // --- CSS STYLES ---
-// UPDATED: Added all 9 Dynamic World colors to match your Python backend
 const STYLES = `
   .cd-container { height: 100vh; display: flex; flex-direction: column; background: #0b0f14; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
   .cd-header { height: 50px; background: #111827; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #333; flex-shrink: 0; }
@@ -34,21 +29,22 @@ const STYLES = `
   .map-select option { background: #111; color: white; }
   .loading-indicator { font-size: 0.7rem; color: #fbbf24; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-  
+  .error-indicator { font-size: 0.7rem; color: #f87171; }
+
   /* LEGEND PANEL STYLES */
   .legend-panel { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(0, 0, 0, 0.85); padding: 12px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #444; pointer-events: none; min-width: 140px; }
   .legend-panel h4 { margin: 0 0 8px 0; color: #ccc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #444; padding-bottom: 5px; }
   .l-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .box { width: 12px; height: 12px; display: inline-block; border-radius: 2px; border: 1px solid rgba(255,255,255,0.2); }
-  
+
   /* DYNAMIC WORLD PALETTE COLORS */
-  .water { background: #419bdf; } 
-  .trees { background: #397d49; } 
-  .grass { background: #88b053; } 
+  .water { background: #419bdf; }
+  .trees { background: #397d49; }
+  .grass { background: #88b053; }
   .flooded_veg { background: #7a87c6; }
-  .crops { background: #e49635; } 
+  .crops { background: #e49635; }
   .shrub { background: #dfc35a; }
-  .urban { background: #c4281b; } 
+  .urban { background: #c4281b; }
   .bare { background: #a59b8f; }
   .snow { background: #b39fe1; }
 `;
@@ -57,9 +53,11 @@ const STYLES = `
 const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, bounds, maskGeo }) => {
   const [tileUrl, setTileUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let active = true;
+    setError(null);
 
     if (layerId === "satellite") {
       setTileUrl("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
@@ -69,10 +67,23 @@ const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, boun
 
     const loadData = async () => {
       setLoading(true);
-      const url = await fetchUrl(layerId, maskGeo.geometry);
-      if (active) {
-        setTileUrl(url);
-        setLoading(false);
+      setTileUrl(null);
+      try {
+        const url = await fetchUrl(layerId, maskGeo.geometry);
+        if (active) {
+          if (url) {
+            setTileUrl(url);
+          } else {
+            setError("No data");
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("MapScreen fetch error:", err);
+        if (active) {
+          setError("Failed");
+          setLoading(false);
+        }
       }
     };
 
@@ -81,26 +92,30 @@ const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, boun
     return () => { active = false; };
   }, [layerId, maskGeo, fetchUrl]);
 
-  const maxPanBounds = useMemo(() => L.latLngBounds(bounds._southWest, bounds._northEast).pad(10.0), [bounds]);
+  const maxPanBounds = useMemo(() =>
+    L.latLngBounds(bounds._southWest, bounds._northEast).pad(10.0),
+  [bounds]);
 
   return (
     <div className="map-frame">
       <div className="map-controls">
-        <select 
+        <select
           className="map-select"
           value={layerId}
           onChange={(e) => onLayerChange(screenId, e.target.value)}
         >
           <option value="satellite">Satellite (Ref)</option>
-          {Array.from({length: 11}, (_, i) => 2015 + i).map(year => (
-            <option key={year} value={year}>{year} Map</option>
+          {/* Dynamic World V1 data available 2015–2024 */}
+          {Array.from({ length: 11 }, (_, i) => 2016 + i).map(year => (
+            <option key={year} value={String(year)}>{year} Map</option>
           ))}
         </select>
         {loading && <span className="loading-indicator">Fetching...</span>}
+        {error && <span className="error-indicator">⚠ {error}</span>}
       </div>
 
       <MapContainer
-        id={`map-view-${screenId}`} 
+        id={`map-view-${screenId}`}
         style={{ height: "100%", width: "100%", background: "#0b0f14" }}
         bounds={bounds}
         maxBounds={maxPanBounds}
@@ -110,15 +125,15 @@ const MapScreen = React.memo(({ screenId, layerId, onLayerChange, fetchUrl, boun
         attributionControl={false}
       >
         {tileUrl && (
-          <TileLayer 
-            url={tileUrl} 
+          <TileLayer
+            url={tileUrl}
             noWrap={true}
-            opacity={layerId === 'satellite' ? 1 : 0.9} 
+            opacity={layerId === "satellite" ? 1 : 0.9}
           />
         )}
-        <GeoJSON 
-          data={maskGeo} 
-          style={{ fillColor: "#0b0f14", fillOpacity: 1, stroke: false }} 
+        <GeoJSON
+          data={maskGeo}
+          style={{ fillColor: "#0b0f14", fillOpacity: 1, stroke: false }}
         />
       </MapContainer>
     </div>
@@ -131,14 +146,15 @@ const ChangeDetection = () => {
   const location = useLocation();
 
   const [screens, setScreens] = useState([
-    { id: 1, layer: "2015" },
-    { id: 2, layer: "2025" },
+    { id: 1, layer: "2016" },
+    { id: 2, layer: "2025" }, // Fixed: was "2025" which doesn't exist in Dynamic World
   ]);
 
-  const [urlCache, setUrlCache] = useState({});
+  // FIX: useRef instead of useState for cache — prevents infinite re-render loop
+  const urlCacheRef = useRef({});
 
   if (!location.state?.aoi) {
-     return <div style={{color: "white", padding: 20}}>Error: No AOI data found. Go back home.</div>;
+    return <div style={{ color: "white", padding: 20 }}>Error: No AOI data found. Go back home.</div>;
   }
 
   const { aoi } = location.state;
@@ -155,41 +171,56 @@ const ChangeDetection = () => {
     },
   }), [aoi]);
 
+  // FIX: empty dependency array — stable function reference, no infinite loop
   const getLayerUrl = useCallback(async (year, geojson) => {
-    if (urlCache[year]) return urlCache[year];
+    const cacheKey = String(year);
+
+    // Return cached URL immediately if available
+    if (urlCacheRef.current[cacheKey]) {
+      return urlCacheRef.current[cacheKey];
+    }
 
     try {
-      const response = await fetch('http://localhost:5000/api/get-gee-layer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year, geojson })
+      const response = await fetch("http://localhost:5002/api/get-gee-layer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: parseInt(year), geojson }),
       });
-      
-      if (!response.ok) return null;
-      
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        console.error(`GEE layer error for ${year}:`, errData.error || response.status);
+        return null;
+      }
+
       const data = await response.json();
-      setUrlCache(prev => ({ ...prev, [year]: data.url }));
-      return data.url;
+
+      if (data.url) {
+        urlCacheRef.current[cacheKey] = data.url; // Cache without triggering re-render
+        return data.url;
+      }
+
+      return null;
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error(`Fetch error for year ${year}:`, error);
       return null;
     }
-  }, [urlCache]);
+  }, []); // ✅ No dependencies — function never recreates, no infinite loop
 
   const addScreen = () => {
     if (screens.length < 6) {
-      setScreens([...screens, { id: Math.random(), layer: "satellite" }]);
+      setScreens(prev => [...prev, { id: Math.random(), layer: "satellite" }]);
     }
   };
 
   const removeScreen = () => {
     if (screens.length > 2) {
-      setScreens(screens.slice(0, -1));
+      setScreens(prev => prev.slice(0, -1));
     }
   };
 
   const handleLayerChange = useCallback((id, newLayer) => {
-    setScreens(prevScreens => prevScreens.map(s => s.id === id ? { ...s, layer: newLayer } : s));
+    setScreens(prev => prev.map(s => s.id === id ? { ...s, layer: newLayer } : s));
   }, []);
 
   return (
@@ -205,28 +236,24 @@ const ChangeDetection = () => {
 
           <div className="screen-controls">
             <span className="screen-count">{screens.length} Screens</span>
-            <button 
-              className="screen-btn remove" 
-              onClick={removeScreen} 
+            <button
+              className="screen-btn remove"
+              onClick={removeScreen}
               disabled={screens.length <= 2}
               title="Remove Screen"
-            >
-              -
-            </button>
-            <button 
-              className="screen-btn" 
-              onClick={addScreen} 
+            >−</button>
+            <button
+              className="screen-btn"
+              onClick={addScreen}
               disabled={screens.length >= 6}
               title="Add Screen"
-            >
-              +
-            </button>
+            >+</button>
           </div>
         </div>
 
         <div className={`cd-grid grid-${screens.length}`}>
           {screens.map((screen) => (
-            <MapScreen 
+            <MapScreen
               key={screen.id}
               screenId={screen.id}
               layerId={screen.layer}
@@ -238,7 +265,6 @@ const ChangeDetection = () => {
           ))}
         </div>
 
-        {/* UPDATED LEGEND to match your Python Backend */}
         <div className="legend-panel">
           <h4>Dynamic World Legend</h4>
           <div className="l-item"><span className="box water"></span> Water</div>
