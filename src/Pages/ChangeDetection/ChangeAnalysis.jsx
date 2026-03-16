@@ -21,7 +21,7 @@ const ChangeAnalysis = () => {
   const { aoi } = useLocation().state || {};
   const navigate = useNavigate();
 
-  const [startYear, setStartYear] = useState(2015);
+  const [startYear, setStartYear] = useState(2016);
   const [endYear, setEndYear] = useState(2024);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -68,8 +68,9 @@ const ChangeAnalysis = () => {
     setSidebarWidth(Math.max(380, Math.min(e.clientX, 800)));
   }, []);
 
-  const API_BASE = "http://localhost:5000/api";
-  const MODEL_BASE = "http://localhost:5001/api";
+// --- Updated to point to Hugging Face Spaces ---
+  const API_BASE = "https://prakash787-lulcmodel.hf.space/api";
+  const MODEL_BASE = "https://prakash787-lulcmodel.hf.space/api";
 
   // --- CORE ANALYSIS LOGIC ---
   const runFullAnalysis = async () => {
@@ -113,22 +114,28 @@ const ChangeAnalysis = () => {
   };
 
   const runAIModel = async () => {
-    setModelLoading(true);
-    try {
-      const response = await fetch(`${MODEL_BASE}/predict`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ geojson: aoi.geometry }),
-      });
-      const data = await response.json();
-      setHeatmapUrl(data.url); setHeatmapBounds(data.bounds); setShowHeatmap(true);
-      return data.url; 
-    } catch (err) {
-      setError("Prediction Model Offline");
-      return null;
-    } finally {
-      setModelLoading(false);
-    }
-  };
+  setModelLoading(true);
+  try {
+    const response = await fetch(`${MODEL_BASE}/predict`, { // This results in http://localhost:5000/api/predict
+      method: "POST", 
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geojson: aoi.geometry }),
+    });
+    
+    if (!response.ok) throw new Error("Offline or Error"); // Added check
+    
+    const data = await response.json();
+    setHeatmapUrl(data.url); 
+    setHeatmapBounds(data.bounds); 
+    setShowHeatmap(true);
+    return data.url; 
+  } catch (err) {
+    setError("Prediction Model Offline");
+    return null;
+  } finally {
+    setModelLoading(false);
+  }
+};
 
   const fetchImageAsBase64 = async (url) => {
     if (!url) return null;

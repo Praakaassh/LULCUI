@@ -44,6 +44,12 @@ const Prediction = () => {
   // =========================================================
   //  FUNCTION: Get Prediction from model.py (Port 5001)
   // =========================================================
+  // =========================================================
+  //  FUNCTION: Get Prediction from Live Cloud Backend
+  // =========================================================
+  // =========================================================
+  //  FUNCTION: Get Prediction from Live Hugging Face Backend
+  // =========================================================
   const runAIModel = async () => {
     setModelLoading(true);
     setModelError(null);
@@ -51,8 +57,10 @@ const Prediction = () => {
     setHeatmapBounds(null);
 
     try {
-      console.log("🧠 Sending request to AI Model on Port 5001...");
-      const response = await fetch("http://localhost:5001/api/predict", {
+      console.log("🧠 Sending request to Live AI Model on Hugging Face...");
+      
+      // 🔴 Updated URL to point to your Hugging Face Space
+      const response = await fetch("https://prakash787-lulcmodel.hf.space/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,13 +76,14 @@ const Prediction = () => {
       const data = await response.json();
       console.log("✅ Prediction received!");
       
-      setHeatmapUrl(data.url);       // Base64 Image string
+      setHeatmapUrl(data.url);       // Base64 Image string from the model
       setHeatmapBounds(data.bounds); // Lat/Lon bounds for placing the overlay
       setShowHeatmap(true);
 
     } catch (err) {
       console.error(err);
-      setModelError("Error connecting to model.py (Port 5001). Check if the backend is running.");
+      // Update error message to reflect the new host
+      setModelError("Error connecting to Hugging Face backend. Please wait a moment if the Space is waking up.");
     } finally {
       setModelLoading(false);
     }

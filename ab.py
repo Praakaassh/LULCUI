@@ -5,28 +5,40 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from geopy.geocoders import Nominatim
-from dotenv import load_dotenv  # Added
+from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load local environment variables if they exist
 load_dotenv()
 
 # --- SUPPRESS WARNINGS ---
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = Flask(__name__)
+
+# Update CORS to be more secure for production later
 CORS(app)
 
-# --- INITIALIZE EARTH ENGINE ---
+# --- INITIALIZE EARTH ENGINE (Cloud-Ready) ---
 try:
-    # Uses the project ID from .env
     ee_project = os.getenv('EE_PROJECT_ID')
-    ee.Initialize(project=ee_project)
-    print(f"✅ Earth Engine Initialized with project: {ee_project}")
+    service_account = os.getenv('EE_SERVICE_ACCOUNT')
+    private_key = os.getenv('EE_PRIVATE_KEY')
+
+    if service_account and private_key:
+        # PRODUCTION: Uses Service Account (Render)
+        # We handle potential escaped newlines from environment variables
+        formatted_key = private_key.replace('\\n', '\n')
+        credentials = ee.ServiceAccountCredentials(service_account, key_data=formatted_key)
+        ee.Initialize(credentials, project=ee_project)
+        print(f"✅ EE Initialized via Service Account: {service_account}")
+    else:
+        # LOCAL: Uses your local gcloud authentication
+        ee.Initialize(project=ee_project)
+        print(f"✅ EE Initialized via Local Auth with project: {ee_project}")
 except Exception as e:
     print(f"❌ EE Initialization Error: {e}")
 
-# --- API KEY CONFIGURATION ---
-# Fetches key from .env instead of hard-coding
+# --- AI CONFIGURATION ---
 api_key = os.getenv('GEMINI_API_KEY')
 
 def get_ai_client():
@@ -39,7 +51,9 @@ DW_CLASSES = {0: "Water", 1: "Trees", 2: "Grass", 3: "Flooded Vegetation",
 def analyze_lulc():
     try:
         data = request.json
-        year_start, year_end = int(data.get('year_start', 2015)), int(data.get('year_end', 2024))
+        # Set default start year to 2016 as requested
+        year_start = int(data.get('year_start', 2016))
+        year_end = int(data.get('year_end', 2024))
         region = ee.Geometry(data['geojson'])
         
         dw = ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1').filterBounds(region)
@@ -99,7 +113,7 @@ def generate_inference():
     location_full = "the analyzed area"
     if coords:
         try:
-            geolocator = Nominatim(user_agent="lulc_final_test", timeout=5)
+            geolocator = Nominatim(user_agent="lulc_seminar_app", timeout=5)
             location = geolocator.reverse(f"{coords['lat']}, {coords['lon']}", language='en')
             if location:
                 addr = location.raw.get('address', {})
@@ -109,7 +123,7 @@ def generate_inference():
         except Exception as e: 
             print(f"⚠️ Geocoder warning: {e}")
 
-    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemma-3-27b-it'] 
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash'] 
     prompt = f"As a Senior Urban Planner, analyze {location_full}. Total change: {data.get('total_changed_km2')} km2, primary shift: {data.get('dominant_shift')}. Write a 100-word professional report. No formatting."
 
     for model_id in models_to_try:
@@ -151,4 +165,5 @@ def get_satellite_thumb():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Local dev server
     app.run(debug=True, port=5000)

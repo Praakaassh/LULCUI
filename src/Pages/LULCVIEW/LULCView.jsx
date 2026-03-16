@@ -181,7 +181,8 @@ const ChangeDetection = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:5002/api/get-gee-layer", {
+      // 🔴 Updated to point to live Render backend
+      const response = await fetch("https://prakash787-lulcmodel.hf.space/api/get-gee-layer",{
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ year: parseInt(year), geojson }),
